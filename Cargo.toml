@@ -1,0 +1,23 @@
+
+[package]
+name = "llvm-sys-query"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+color-eyre = "0.6.5"
+crates-index = { version = "3.14.0", features = ["git", "git-https"] }
+flate2 = "1.1.9"
+reqwest = { version = "0.13.4", features = ["blocking", "gzip"] }
+rustdoc-json = "0.9.10"
+rustdoc-types = "0.57.3"
+semver = "1.0.28"
+serde_json = "1.0.150"
+sha2 = "0.11.0"
+tar = "0.4.46"
+thiserror = "2.0.18"
+uranus = "0.3.0"
+clap = { version = "4.6.1", features = ["derive"] }
+ratatui = "0.30.0"
+crossterm = "0.29.0"
+rayon = "1.12.0"

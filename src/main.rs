@@ -2,7 +2,9 @@ mod code;
 mod query;
 mod viewer;
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
+
+use rustdoc_types::{Function, Item};
 
 use crate::{query::DLLocations, viewer::app::QueryApp};
 
@@ -60,6 +62,7 @@ fn download_all() -> color_eyre::Result<()> {
         String::from("llvm_sys"),
         String::from("orc2"),
     ];
+    let mut version_functions = HashMap::<String, Vec<(&Item, semver::Version)>>::new();
     'crates_iter: for (krate, dl) in crates.iter() {
         for (id, item) in krate.index.iter() {
             if let Some(path_item)  = krate.paths.get(id) {
@@ -68,26 +71,33 @@ fn download_all() -> color_eyre::Result<()> {
                     let item_path = krate.paths[id].path.join("::");
                     match &item.inner {
                         rustdoc_types::ItemEnum::Function(function) => {
-                            if let Some(span) = item.span.as_ref() {
-                                let source_path = dl.source.join(&span.filename);
-                                println!("--- {item_path}");
-                                println!("\x1b[38;2;0;150;230m{}:{}:{}\x1b[39m", source_path.display(), span.begin.0, span.begin.1);
-                                let source_code = code::query_code(&dl.source, span)?;
-                                println!("\x1b[38;2;0;200;100m{source_code}\x1b[39m");
-                            }
-                            continue;
+                            let list = version_functions.entry(item_path).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone()));
+                            // if let Some(span) = item.span.as_ref() {
+                            //     let source_path = dl.source.join(&span.filename);
+                            //     println!("--- {item_path}");
+                            //     println!("\x1b[38;2;0;150;230m{}:{}:{}\x1b[39m", source_path.display(), span.begin.0, span.begin.1);
+                            //     let source_code = code::query_code(&dl.source, span)?;
+                            //     println!("\x1b[38;2;0;200;100m{source_code}\x1b[39m");
+                            // }
                         },
                         _ => (),
                     }
                 }
             }
         }
-        break;
+    }
+    for (path, versions) in version_functions.iter() {
+        println!("\x1b[38;2;0;150;250m{path}\x1b[39m");
+        for (item, vers) in versions {
+            println!("- {vers}");
+        }
     }
     Ok(())
 }
 
 fn main() -> color_eyre::Result<()> {
-    QueryApp::create_and_run()?;
+    download_all()?;
+    // QueryApp::create_and_run()?;
     Ok(())
 }

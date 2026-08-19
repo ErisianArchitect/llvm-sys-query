@@ -130,13 +130,6 @@ impl DoubleRefCount {
     }
 }
 
-#[repr(C)]
-struct StopArcInner {
-    
-}
-
-struct StopArc 
-
 #[derive(Debug, Clone)]
 struct BackgroundStopper {
     // NOTE: This has a data race if the weak count is non-zero.

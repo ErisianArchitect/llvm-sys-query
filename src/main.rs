@@ -1,12 +1,12 @@
 mod code;
 mod query;
-mod viewer;
+// mod viewer;
 
 use std::{collections::HashMap, path::PathBuf};
 
 use rustdoc_types::{Function, Item, Crate};
 
-use crate::{query::DLLocations, viewer::app::QueryApp};
+use crate::{query::DLLocations};
 
 const NEEDED_VERSIONS: &[&'static str] = &[
     "120.3.2",

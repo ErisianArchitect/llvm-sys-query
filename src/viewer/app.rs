@@ -101,6 +101,85 @@ impl CrosstermThread {
     }
 }
 
+#[repr(transparent)]
+#[derive(Debug, Clone)]
+struct DoubleRefCount {
+    counts: AtomicU64,
+}
+
+impl DoubleRefCount {
+    const STRONG_ORDER: std::sync::atomic::Ordering = std::sync::atomic::Ordering::SeqCst;
+    const WEAK_ORDER: std::sync::atomic::Ordering = std::sync::atomic::Ordering::Relaxed;
+    const ONE_STRONG: u64 = 1;
+    const ONE_WEAK: u64 = 1 << 32;
+    /// Increments the strong count then returns the resulting count.
+    pub const fn incr_strong(&self) -> u32 {
+        let mut current = self.counts.load(Self::WEAK_ORDER);
+        loop {
+            let new_count = current + Self::ONE_STRONG;
+            match self.counts.compare_exchange(
+                current,
+                new_count,
+                Self::STRONG_ORDER,
+                Self::WEAK_ORDER,
+            ) {
+                Ok(_) => return (new_count & 0xFFFFFFFF) as u32,
+                Err(real) => current = real,
+            }
+        }
+    }
+}
+
+#[repr(C)]
+struct StopArcInner {
+    
+}
+
+struct StopArc 
+
+#[derive(Debug, Clone)]
+struct BackgroundStopper {
+    // NOTE: This has a data race if the weak count is non-zero.
+    //       The only way to prevent this data race is if I
+    //       implement my own reference counting type, which
+    //       I can do, but I don't really need it since I don't
+    //       plan to create weak references to this type yet.
+    trigger: Arc<AtomicBool>,
+    stop_on_drop: bool,
+}
+
+impl BackgroundStopper {
+    const ORDER: std::sync::atomic::Ordering = std::sync::atomic::Ordering::Relaxed;
+    pub fn new(stop_on_drop: bool) -> Self {
+        Self {
+            trigger: Arc::new(AtomicBool::new(false)),
+            stop_on_drop,
+        }
+    }
+
+    pub fn stop(&self) {
+        self.trigger.store(true, Self::ORDER);
+    }
+
+    pub fn was_stop_requested(&self) -> bool {
+        self.trigger.load(Self::ORDER)
+    }
+}
+
+impl Drop for BackgroundStopper {
+    fn drop(&mut self) {
+        if self.stop_on_drop
+        // NOTE: This has a data race if the weak count is non-zero.
+        //       The only way to prevent this data race is if I
+        //       implement my own reference counting type, which
+        //       I can do, but I don't really need it since I don't
+        //       plan to create weak references to this type yet.
+        && Arc::strong_count(&self.trigger) == 1{
+            self.stop();
+        }
+    }
+}
+
 pub struct QueryApp {
     requests: AppRequests,
     ctx: AppContext,
@@ -153,7 +232,9 @@ impl QueryApp {
 
     pub fn create_and_run() -> Result<(), AppError> {
         let mut app = Self::new();
-        app.run()
+        let result = app.run();
+        app.background_stopper.store(true, std::sync::atomic::Ordering::Relaxed);
+        result
     }
 
     fn handle_paste(&mut self, pasted: String) -> Result {
@@ -199,7 +280,6 @@ impl QueryApp {
 
     fn draw(&mut self, term: &mut DefaultTerminal) -> Result {
         term.draw(move |frame| {
-            
             if let Some((col, row)) = self.ctx.last_mouse_pos {
                 frame.render_widget(CursorBox(col, row), frame.area());
             }

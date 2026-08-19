@@ -4,7 +4,7 @@ mod viewer;
 
 use std::{collections::HashMap, path::PathBuf};
 
-use rustdoc_types::{Function, Item};
+use rustdoc_types::{Function, Item, Crate};
 
 use crate::{query::DLLocations, viewer::app::QueryApp};
 
@@ -62,7 +62,7 @@ fn download_all() -> color_eyre::Result<()> {
         String::from("llvm_sys"),
         String::from("orc2"),
     ];
-    let mut version_functions = HashMap::<String, Vec<(&Item, semver::Version)>>::new();
+    let mut version_functions = HashMap::<String, Vec<(&Item, semver::Version, &Crate)>>::new();
     'crates_iter: for (krate, dl) in crates.iter() {
         for (id, item) in krate.index.iter() {
             if let Some(path_item)  = krate.paths.get(id) {
@@ -71,8 +71,8 @@ fn download_all() -> color_eyre::Result<()> {
                     let item_path = krate.paths[id].path.join("::");
                     match &item.inner {
                         rustdoc_types::ItemEnum::Function(function) => {
-                            let list = version_functions.entry(item_path).or_insert_with(move || Vec::new());
-                            list.push((item, dl.version.clone()));
+                            let list = version_functions.entry(item_path.clone()).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone(), krate));
                             // if let Some(span) = item.span.as_ref() {
                             //     let source_path = dl.source.join(&span.filename);
                             //     println!("--- {item_path}");
@@ -88,8 +88,35 @@ fn download_all() -> color_eyre::Result<()> {
         }
     }
     for (path, versions) in version_functions.iter() {
-        println!("\x1b[38;2;0;150;250m{path}\x1b[39m");
-        for (item, vers) in versions {
+        // println!("\x1b[38;2;0;150;250m{path}\x1b[39m");
+        println!("{path}");
+        for (_item, vers, krate) in versions {
+            // match _item.inner.item_kind() {
+            //     rustdoc_types::ItemKind::Module => todo!(),
+            //     rustdoc_types::ItemKind::ExternCrate => todo!(),
+            //     rustdoc_types::ItemKind::Use => todo!(),
+            //     rustdoc_types::ItemKind::Struct => todo!(),
+            //     rustdoc_types::ItemKind::StructField => todo!(),
+            //     rustdoc_types::ItemKind::Union => todo!(),
+            //     rustdoc_types::ItemKind::Enum => todo!(),
+            //     rustdoc_types::ItemKind::Variant => todo!(),
+            //     rustdoc_types::ItemKind::Function => todo!(),
+            //     rustdoc_types::ItemKind::TypeAlias => todo!(),
+            //     rustdoc_types::ItemKind::Constant => todo!(),
+            //     rustdoc_types::ItemKind::Trait => todo!(),
+            //     rustdoc_types::ItemKind::TraitAlias => todo!(),
+            //     rustdoc_types::ItemKind::Impl => todo!(),
+            //     rustdoc_types::ItemKind::Static => todo!(),
+            //     rustdoc_types::ItemKind::ExternType => todo!(),
+            //     rustdoc_types::ItemKind::Macro => todo!(),
+            //     rustdoc_types::ItemKind::ProcAttribute => todo!(),
+            //     rustdoc_types::ItemKind::ProcDerive => todo!(),
+            //     rustdoc_types::ItemKind::AssocConst => todo!(),
+            //     rustdoc_types::ItemKind::AssocType => todo!(),
+            //     rustdoc_types::ItemKind::Primitive => todo!(),
+            //     rustdoc_types::ItemKind::Keyword => todo!(),
+            //     rustdoc_types::ItemKind::Attribute => todo!(),
+            // }
             println!("- {vers}");
         }
     }

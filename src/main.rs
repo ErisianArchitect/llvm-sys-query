@@ -9,7 +9,6 @@ use rustdoc_types::{Function, Item, Crate};
 use crate::{query::DLLocations, viewer::app::QueryApp};
 
 const NEEDED_VERSIONS: &[&'static str] = &[
-    "110.0.4",
     "120.3.2",
     "130.1.2",
     "140.1.3",
@@ -62,62 +61,66 @@ fn download_all() -> color_eyre::Result<()> {
         String::from("llvm_sys"),
         String::from("orc2"),
     ];
-    let mut version_functions = HashMap::<String, Vec<(&Item, semver::Version, &Crate)>>::new();
-    'crates_iter: for (krate, dl) in crates.iter() {
+    type ItemVec<'a> = Vec<(&'a Item, semver::Version, &'a Crate)>;
+    let mut version_functions = HashMap::<String, ItemVec>::new();
+    let mut version_modules = HashMap::<String, ItemVec>::new();
+    let mut version_structs = HashMap::<String, ItemVec>::new();
+    let mut version_enums = HashMap::<String, ItemVec>::new();
+    let mut version_traits = HashMap::<String, ItemVec>::new();
+    let mut version_aliases = HashMap::<String, ItemVec>::new();
+    for (krate, dl) in crates.iter() {
         for (id, item) in krate.index.iter() {
             if let Some(path_item)  = krate.paths.get(id) {
                 let full_path = path_item.path.as_slice();
                 if full_path.starts_with(&module_path) {
                     let item_path = krate.paths[id].path.join("::");
+                    use rustdoc_types::ItemEnum;
                     match &item.inner {
-                        rustdoc_types::ItemEnum::Function(function) => {
+                        ItemEnum::Function(_) => {
                             let list = version_functions.entry(item_path.clone()).or_insert_with(move || Vec::new());
                             list.push((item, dl.version.clone(), krate));
-                            // if let Some(span) = item.span.as_ref() {
-                            //     let source_path = dl.source.join(&span.filename);
-                            //     println!("--- {item_path}");
-                            //     println!("\x1b[38;2;0;150;230m{}:{}:{}\x1b[39m", source_path.display(), span.begin.0, span.begin.1);
-                            //     let source_code = code::query_code(&dl.source, span)?;
-                            //     println!("\x1b[38;2;0;200;100m{source_code}\x1b[39m");
-                            // }
                         },
+                        ItemEnum::Module(_) => {
+                            let list = version_modules.entry(item_path.clone()).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone(), krate));
+                        }
+                        ItemEnum::Struct(_) => {
+                            let list = version_structs.entry(item_path.clone()).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone(), krate));
+                        }
+                        ItemEnum::Enum(_) => {
+                            let list = version_enums.entry(item_path.clone()).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone(), krate));
+                        }
+                        ItemEnum::Trait(_) => {
+                            let list = version_traits.entry(item_path.clone()).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone(), krate));
+                        }
+                        ItemEnum::TypeAlias(_) => {
+                            let list = version_aliases.entry(item_path.clone()).or_insert_with(move || Vec::new());
+                            list.push((item, dl.version.clone(), krate));
+                        }
                         _ => (),
                     }
                 }
             }
         }
     }
-    for (path, versions) in version_functions.iter() {
-        // println!("\x1b[38;2;0;150;250m{path}\x1b[39m");
-        println!("{path}");
-        for (_item, vers, krate) in versions {
-            // match _item.inner.item_kind() {
-            //     rustdoc_types::ItemKind::Module => todo!(),
-            //     rustdoc_types::ItemKind::ExternCrate => todo!(),
-            //     rustdoc_types::ItemKind::Use => todo!(),
-            //     rustdoc_types::ItemKind::Struct => todo!(),
-            //     rustdoc_types::ItemKind::StructField => todo!(),
-            //     rustdoc_types::ItemKind::Union => todo!(),
-            //     rustdoc_types::ItemKind::Enum => todo!(),
-            //     rustdoc_types::ItemKind::Variant => todo!(),
-            //     rustdoc_types::ItemKind::Function => todo!(),
-            //     rustdoc_types::ItemKind::TypeAlias => todo!(),
-            //     rustdoc_types::ItemKind::Constant => todo!(),
-            //     rustdoc_types::ItemKind::Trait => todo!(),
-            //     rustdoc_types::ItemKind::TraitAlias => todo!(),
-            //     rustdoc_types::ItemKind::Impl => todo!(),
-            //     rustdoc_types::ItemKind::Static => todo!(),
-            //     rustdoc_types::ItemKind::ExternType => todo!(),
-            //     rustdoc_types::ItemKind::Macro => todo!(),
-            //     rustdoc_types::ItemKind::ProcAttribute => todo!(),
-            //     rustdoc_types::ItemKind::ProcDerive => todo!(),
-            //     rustdoc_types::ItemKind::AssocConst => todo!(),
-            //     rustdoc_types::ItemKind::AssocType => todo!(),
-            //     rustdoc_types::ItemKind::Primitive => todo!(),
-            //     rustdoc_types::ItemKind::Keyword => todo!(),
-            //     rustdoc_types::ItemKind::Attribute => todo!(),
-            // }
-            println!("- {vers}");
+    let view_list = [
+        ("FUNCTIONS", &version_functions),
+        ("MODULES", &version_modules),
+        ("STRUCTS", &version_structs),
+        ("ENUMS", &version_enums),
+        ("TRAITS", &version_traits),
+        ("ALIASES", &version_aliases),
+    ];
+    for (item_type, info) in view_list {
+        println!("---- [{item_type}] ----");
+        for (path, versions) in info.iter() {
+            println!("{path}");
+            for (_item, vers, _krate) in versions {
+                println!("    - {vers}");
+            }
         }
     }
     Ok(())
